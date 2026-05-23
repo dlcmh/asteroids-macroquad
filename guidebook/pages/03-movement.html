@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 3: Movement & Game Loops - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366',
+                        deep: '#0d0d2b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+
+        <article>
+            <span class="text-neon text-sm">Chapter 3</span>
+            <h1 class="text-3xl font-bold mt-2 mb-4">Movement & Game Loops</h1>
+            <p class="text-gray-400 mb-8 text-lg">How things fly through space. No asteroids yet—just pure motion.</p>
+
+            <!-- Position & Velocity -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Two Vectors That Run Everything</h2>
+                <p class="mb-4">Every moving object in our game needs just two pieces of information:</p>
+
+                <div class="grid gap-4 mb-6">
+                    <div class="bg-deep rounded-lg p-5 border-l-4 border-neon">
+                        <h3 class="text-neon font-bold text-lg">📍 Position</h3>
+                        <p class="text-sm text-gray-300 mt-1">Where is it right now?</p>
+                        <code class="text-neon text-sm">Vec2::new(x, y)</code>
+                    </div>
+                    <div class="bg-deep rounded-lg p-5 border-l-4 border-thrust">
+                        <h3 class="text-thrust font-bold text-lg">⚡ Velocity</h3>
+                        <p class="text-sm text-gray-300 mt-1">How fast and in what direction is it moving?</p>
+                        <code class="text-thrust text-sm">Vec2::new(dx, dy)</code>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">struct Ship {
+    position: Vec2,  // Where on screen
+    velocity: Vec2,  // Pixels per second
+}
+
+// Starting at center, not moving
+let ship = Ship {
+    position: Vec2::new(screen_width() / 2.0, screen_height() / 2.0),
+    velocity: Vec2::new(0.0, 0.0),
+};</code></pre>
+                </div>
+                <p class="text-sm text-gray-400">Velocity of <code>(100.0, 0.0)</code> means "move 100 pixels right every second." Velocity of <code>(0.0, -50.0)</code> means "move 50 pixels up every second" (remember: Y goes down, so negative Y is up!).</p>
+            </section>
+
+            <!-- Euler Integration -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Euler Integration (The Magic Update Step)</h2>
+                <p class="mb-4">Every frame, we update position using velocity. This is called <strong>Euler integration</strong>—named after the mathematician Leonhard Euler. Don't let the fancy name scare you:</p>
+
+                <div class="bg-deep rounded-lg p-6 mb-6 text-center">
+                    <p class="text-2xl font-bold text-neon mb-2">new_position = old_position + velocity × delta_time</p>
+                    <p class="text-sm text-gray-400">That's it. That's the whole thing.</p>
+                </div>
+
+                <h3 class="text-lg font-bold text-neon mb-3">Why multiply by delta_time?</h3>
+                <p class="mb-4">Computers run at different speeds. If we just did <code>position += velocity</code> every frame:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li>On a 30 FPS machine: moves 30 × velocity per second</li>
+                    <li>On a 60 FPS machine: moves 60 × velocity per second</li>
+                    <li>On a 144 FPS machine: moves 144 × velocity per second <span class="text-thrust">(way too fast!)</span></li>
+                </ul>
+                <p class="mb-4"><strong>Delta time (dt)</strong> is the actual time elapsed since the last frame. By multiplying, we make movement <em>frame-rate independent</em>.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">// Inside the game loop
+let dt = get_frame_time();  // macroquad gives us this
+
+// Move the ship
+ship.position.x += ship.velocity.x * dt;
+ship.position.y += ship.velocity.y * dt;
+
+// Or using Vec2 magic:
+ship.position += ship.velocity * dt;</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Mental Model</h4>
+                    <p class="text-sm">Imagine you're driving a car. Your <strong>position</strong> is where the car is. Your <strong>velocity</strong> is how fast the speedometer reads. <strong>Delta time</strong> is how long you've been driving at that speed. Distance traveled = speed × time. That's all Euler integration is.</p>
+                </div>
+            </section>
+
+            <!-- Screen Wrapping -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Screen Wrapping (Asteroids' Signature)</h2>
+                <p class="mb-4">In Asteroids, nothing ever stops. When you fly off one edge, you appear on the opposite side. This creates the feeling of infinite space.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon">fn wrap_position(pos: &mut Vec2, screen_w: f32, screen_h: f32) {
+    if pos.x < 0.0 {
+        pos.x += screen_w;  // Wrap right
+    }
+    if pos.x > screen_w {
+        pos.x -= screen_w;  // Wrap left
+    }
+    if pos.y < 0.0 {
+        pos.y += screen_h;  // Wrap down
+    }
+    if pos.y > screen_h {
+        pos.y -= screen_h;  // Wrap up
+    }
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-thrust font-bold mb-2">⚠️ Common Pitfall</h4>
+                    <p class="text-sm">Don't use <code>%</code> (modulo) in Rust for negative numbers—it behaves differently than you might expect. The <code>if</code> approach above is clearer and always correct.</p>
+                </div>
+            </section>
+
+            <!-- Complete Example -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Putting It All Together</h2>
+                <p class="mb-4">Here's a complete program. Copy this into your <code>main.rs</code> and run it:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4 overflow-x-auto">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+struct Ship {
+    position: Vec2,
+    velocity: Vec2,
+}
+
+fn wrap_position(pos: &mut Vec2, screen_w: f32, screen_h: f32) {
+    if pos.x < 0.0 { pos.x += screen_w; }
+    if pos.x > screen_w { pos.x -= screen_w; }
+    if pos.y < 0.0 { pos.y += screen_h; }
+    if pos.y > screen_h { pos.y -= screen_h; }
+}
+
+#[macroquad::main("Movement Demo")]
+async fn main() {
+    let mut ship = Ship {
+        position: Vec2::new(screen_width() / 2.0, screen_height() / 2.0),
+        velocity: Vec2::new(100.0, 50.0), // Moving right and down
+    };
+
+    loop {
+        let dt = get_frame_time();
+        clear_background(BLACK);
+
+        // Update: Euler integration
+        ship.position += ship.velocity * dt;
+
+        // Update: Screen wrapping
+        wrap_position(&mut ship.position, screen_width(), screen_height());
+
+        // Draw the ship (a circle for now)
+        draw_circle(ship.position.x, ship.position.y, 15.0, YELLOW);
+
+        // Draw velocity vector as a line
+        draw_line(
+            ship.position.x, 
+            ship.position.y,
+            ship.position.x + ship.velocity.x * 0.1,
+            ship.position.y + ship.velocity.y * 0.1,
+            2.0,
+            RED
+        );
+
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+
+                <p class="mb-4">Run it. You should see a yellow circle drifting across the screen and wrapping around the edges. The red line shows its velocity direction.</p>
+                <p class="text-sm text-gray-400">Try changing the initial velocity values. What happens with <code>(0.0, 0.0)</code>? What about <code>(-100.0, 0.0)</code>?</p>
+            </section>
+
+            <!-- Adding Input -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Adding Keyboard Control</h2>
+                <p class="mb-4">A drifting ship is cool, but we want to fly it. Let's add arrow key controls:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">// Add this before the Euler integration step
+let thrust_power = 200.0; // Pixels per second²
+
+if is_key_down(KeyCode::Right) {
+    ship.velocity.x += thrust_power * dt;
+}
+if is_key_down(KeyCode::Left) {
+    ship.velocity.x -= thrust_power * dt;
+}
+if is_key_down(KeyCode::Up) {
+    ship.velocity.y -= thrust_power * dt; // Negative is UP
+}
+if is_key_down(KeyCode::Down) {
+    ship.velocity.y += thrust_power * dt; // Positive is DOWN
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">💡 Why "thrust_power * dt"?</h4>
+                    <p class="text-sm">Velocity changes over time, just like position. We're doing Euler integration on velocity too! Thrust adds to velocity, velocity adds to position. This is <strong>acceleration</strong>.</p>
+                </div>
+            </section>
+
+            <!-- Friction -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Space Friction (Optional but Nice)</h2>
+                <p class="mb-4">In real space, there's no friction—objects drift forever. But for a game, a tiny bit of drag makes the ship feel more controllable:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">// Apply slight drag each frame
+let drag = 0.99; // Multiply velocity by this each frame
+ship.velocity *= drag;</code></pre>
+                </div>
+                <p class="text-sm text-gray-400">At 60 FPS, a drag of 0.99 means velocity halves in about 1.1 seconds. Try different values: 0.995 for less drag, 0.98 for more.</p>
+            </section>
+
+            <!-- Key Takeaways -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Key Takeaways</h2>
+                <div class="space-y-3">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Euler Integration:</strong> <code>position += velocity * dt</code></p>
+                        <p class="text-sm text-gray-400">The foundation of all game physics. Simple, effective, good enough for us.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Delta Time:</strong> Use <code>get_frame_time()</code></p>
+                        <p class="text-sm text-gray-400">Makes your game run the same speed on any computer.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Screen Wrapping:</strong> Check all four edges</p>
+                        <p class="text-sm text-gray-400">Creates the feeling of infinite space with zero extra complexity.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Vec2 Operations:</strong> Add, multiply, they just work</p>
+                        <p class="text-sm text-gray-400">Vector math makes game code clean and readable.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exercises -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Try This Yourself</h2>
+                <ol class="list-decimal pl-6 space-y-3 mb-4">
+                    <li>Change the initial velocity. Make the ship drift slowly left and up.</li>
+                    <li>Remove the drag. Feel how different the ship handles.</li>
+                    <li>Add a maximum speed: <code>clamp_length</code> the velocity vector.</li>
+                    <li>Make the ship wrap but leave a "ghost" image briefly at the opposite edge. (Hint: draw the ship twice when it's near a boundary.)</li>
+                </ol>
+            </section>
+
+            <div class="bg-thrust/10 border border-thrust rounded-lg p-4 mb-10">
+                <p class="text-thrust font-bold">🎯 You're now ready for Chapter 4!</p>
+                <p class="text-sm text-gray-300 mt-1">We'll tackle angles and rotation—the math that makes your ship turn. Don't worry, <code>atan2</code> is your friend.</p>
+            </div>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="02-coordinates.html" class="text-neon hover:underline">← Chapter 2: Coordinates</a>
+            <a href="04-angles.html" class="text-neon hover:underline">Chapter 4: Angles →</a>
+        </nav>
+    </div>
+</body>
+</html>
