@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 4: Angles, Radians & atan2 - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre { overflow-x: auto; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366',
+                        deep: '#0d0d2b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+
+        <article>
+            <span class="text-neon text-sm">Chapter 4</span>
+            <h1 class="text-3xl font-bold mt-2 mb-4">Angles, Radians & atan2</h1>
+            <p class="text-gray-400 mb-8 text-lg">The three things that scare beginners the most. They're simpler than you think.</p>
+
+            <!-- Degrees vs Radians -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Why Radians Instead of Degrees?</h2>
+                <p class="mb-4">You grew up with degrees. A circle has 360°. It's arbitrary—some ancient Babylonian decided this thousands of years ago because 360 divides nicely by lots of numbers.</p>
+                <p class="mb-4"><strong>Radians</strong> are the universe's native angle unit. One radian is the angle you get when you wrap the radius of a circle along its circumference.</p>
+
+                <div class="bg-deep rounded-lg p-6 mb-6 text-center">
+                    <p class="text-2xl font-bold text-neon mb-2">Full circle = 2π radians ≈ 6.283</p>
+                    <p class="text-sm text-gray-400">That's it. That's the only fact you need to memorize.</p>
+                </div>
+
+                <div class="overflow-x-auto bg-gray-900 rounded-lg p-4 mb-6">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="py-2 pr-4 text-neon">Degrees</th>
+                                <th class="py-2 pr-4 text-neon">Radians</th>
+                                <th class="py-2 text-neon">What it means for your ship</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm">
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">0°</td>
+                                <td class="py-2 pr-4">0</td>
+                                <td class="py-2">Pointing right →</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">90°</td>
+                                <td class="py-2 pr-4">π/2 ≈ 1.57</td>
+                                <td class="py-2">Pointing down ↓</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">180°</td>
+                                <td class="py-2 pr-4">π ≈ 3.14</td>
+                                <td class="py-2">Pointing left ←</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">270°</td>
+                                <td class="py-2 pr-4">3π/2 ≈ 4.71</td>
+                                <td class="py-2">Pointing up ↑</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4">360°</td>
+                                <td class="py-2 pr-4">2π ≈ 6.28</td>
+                                <td class="py-2">Back to pointing right →</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-thrust font-bold mb-2">⚠️ Wait—0° points RIGHT, not UP?</h4>
+                    <p class="text-sm">Yes. In math and game programming, angle 0 is the positive X axis (right), and angles increase counterclockwise. This is the standard convention. Get comfortable with it now—every math function you'll use assumes this.</p>
+                </div>
+
+                <p class="text-sm text-gray-400">macroquad gives you π as <code class="text-neon">std::f32::consts::PI</code>. Use it. Never type 3.14—it's not precise enough.</p>
+            </section>
+
+            <!-- Direction from Angle -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Converting an Angle to a Direction Vector</h2>
+                <p class="mb-4">Your ship has an angle. You press "thrust." Which way is forward? You need to convert the angle into X and Y components.</p>
+
+                <div class="bg-deep rounded-lg p-6 mb-6 text-center">
+                    <p class="text-2xl font-bold text-neon mb-2">direction_x = cos(angle)</p>
+                    <p class="text-2xl font-bold text-neon mb-2">direction_y = sin(angle)</p>
+                </div>
+
+                <p class="mb-4">Let's test this with the table above:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Angle 0 (pointing right)
+cos(0) = 1.0   // Full X, no Y → right
+sin(0) = 0.0
+
+// Angle PI/2 (pointing down)
+cos(PI/2) = 0.0   // No X, full Y → down
+sin(PI/2) = 1.0
+
+// Angle PI (pointing left)
+cos(PI) = -1.0   // Negative X, no Y → left
+sin(PI) = 0.0
+
+// Angle 3*PI/2 (pointing up)
+cos(3*PI/2) = 0.0   // No X, negative Y → up
+sin(3*PI/2) = -1.0</code></pre>
+                </div>
+
+                <p class="mb-4">It works! Cosine gives you the X component, sine gives you the Y component. Always. For any angle.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">let forward_x = ship.angle.cos();
+let forward_y = ship.angle.sin();
+let forward = Vec2::new(forward_x, forward_y);
+
+// Apply thrust in the forward direction
+ship.velocity += forward * thrust_power * dt;</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Mental Model</h4>
+                    <p class="text-sm">Imagine a circle of radius 1 centered at the origin. For any point on that circle, <strong>cos(angle) is the X coordinate</strong>, <strong>sin(angle) is the Y coordinate</strong>. That's literally the definition of sine and cosine. When you thrust, you're just moving in the direction of that point on the circle.</p>
+                </div>
+            </section>
+
+            <!-- atan2 -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">atan2: The Function You'll Actually Need</h2>
+                <p class="mb-4">We just went from angle to direction. But sometimes you have a direction and need the angle. Specifically: <strong>you know where the mouse is, and you want your ship to point at it</strong>.</p>
+
+                <div class="bg-deep rounded-lg p-6 mb-6 text-center">
+                    <p class="text-2xl font-bold text-neon mb-2">angle = atan2(y, x)</p>
+                    <p class="text-sm text-gray-400">Note: Y comes FIRST. This catches everyone.</p>
+                </div>
+
+                <p class="mb-4"><code class="text-neon">atan2</code> takes a Y and an X, and returns the angle from the origin to that point. It handles all the quadrant math for you.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Where is the mouse relative to the ship?
+let dx = mouse_x - ship.position.x;
+let dy = mouse_y - ship.position.y;
+
+// What angle points from ship to mouse?
+let target_angle = dy.atan2(dx);
+// YES: dy.atan2(dx), NOT dx.atan2(dy)</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-thrust mb-4">
+                    <h4 class="text-thrust font-bold mb-2">🚨 Why atan2 and not atan?</h4>
+                    <p class="text-sm"><code>atan(y/x)</code> can't tell the difference between (1,1) and (-1,-1) because the division loses sign information. <code>atan2(y, x)</code> takes both separately and returns the correct angle for all four quadrants. Always use <code>atan2</code>. Never <code>atan</code>.</p>
+                </div>
+            </section>
+
+            <!-- Rotating the Ship -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Rotating the Ship</h2>
+                <p class="mb-4">To turn the ship, you just add or subtract from its angle:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">let rotation_speed = 3.0; // Radians per second
+
+if is_key_down(KeyCode::Left) {
+    ship.angle -= rotation_speed * dt;
+}
+if is_key_down(KeyCode::Right) {
+    ship.angle += rotation_speed * dt;
+}</code></pre>
+                </div>
+
+                <p class="mb-4">But there's a problem: after many rotations, your angle could be 100π. That's fine mathematically, but for display and debugging, it's cleaner to keep angles in [0, 2π):</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">// Normalize angle to [0, 2π)
+fn normalize_angle(angle: f32) -> f32 {
+    let mut a = angle % (2.0 * std::f32::consts::PI);
+    if a < 0.0 {
+        a += 2.0 * std::f32::consts::PI;
+    }
+    a
+}</code></pre>
+                </div>
+                <p class="text-sm text-gray-400">Not strictly required, but good practice. It prevents floating-point drift over long play sessions.</p>
+            </section>
+
+            <!-- Drawing a Rotated Triangle -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Drawing a Rotated Ship</h2>
+                <p class="mb-4">Now the payoff. Instead of a circle, let's draw a triangle that actually points in the ship's direction:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">fn draw_ship(position: Vec2, angle: f32) {
+    // Ship points right by default (angle 0 = right)
+    let nose = Vec2::new(
+        position.x + angle.cos() * 20.0,
+        position.y + angle.sin() * 20.0,
+    );
+
+    // Back-left corner: angle + 150° (in radians: 5π/6)
+    let left_wing = Vec2::new(
+        position.x + (angle + 5.0 * std::f32::consts::PI / 6.0).cos() * 15.0,
+        position.y + (angle + 5.0 * std::f32::consts::PI / 6.0).sin() * 15.0,
+    );
+
+    // Back-right corner: angle - 150°
+    let right_wing = Vec2::new(
+        position.x + (angle - 5.0 * std::f32::consts::PI / 6.0).cos() * 15.0,
+        position.y + (angle - 5.0 * std::f32::consts::PI / 6.0).sin() * 15.0,
+    );
+
+    draw_triangle(nose, left_wing, right_wing, WHITE);
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 What's happening here?</h4>
+                    <p class="text-sm">We're computing the three corners of the triangle by starting from the ship's center position and moving outward in three directions. The nose points in the ship's <code>angle</code>. The wings are offset by ±150° from that direction. The 20.0 and 15.0 are distances—the nose is longer than the wings are wide.</p>
+                    <p class="text-sm mt-2">As <code>angle</code> changes (from pressing Left/Right), all three points rotate together. The triangle always points the right way.</p>
+                </div>
+            </section>
+
+            <!-- Complete Example -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Complete Rotating Ship Example</h2>
+                <p class="mb-4">Replace your entire <code>main.rs</code> with this:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+struct Ship {
+    position: Vec2,
+    velocity: Vec2,
+    angle: f32,
+}
+
+fn wrap_position(pos: &mut Vec2, screen_w: f32, screen_h: f32) {
+    if pos.x < 0.0 { pos.x += screen_w; }
+    if pos.x > screen_w { pos.x -= screen_w; }
+    if pos.y < 0.0 { pos.y += screen_h; }
+    if pos.y > screen_h { pos.y -= screen_h; }
+}
+
+fn draw_ship(position: Vec2, angle: f32) {
+    let nose = Vec2::new(
+        position.x + angle.cos() * 20.0,
+        position.y + angle.sin() * 20.0,
+    );
+    let left_wing = Vec2::new(
+        position.x + (angle + 2.618).cos() * 15.0,
+        position.y + (angle + 2.618).sin() * 15.0,
+    );
+    let right_wing = Vec2::new(
+        position.x + (angle - 2.618).cos() * 15.0,
+        position.y + (angle - 2.618).sin() * 15.0,
+    );
+    draw_triangle(nose, left_wing, right_wing, WHITE);
+}
+
+#[macroquad::main("Rotating Ship")]
+async fn main() {
+    let mut ship = Ship {
+        position: Vec2::new(screen_width() / 2.0, screen_height() / 2.0),
+        velocity: Vec2::new(0.0, 0.0),
+        angle: 0.0,
+    };
+
+    loop {
+        let dt = get_frame_time();
+        clear_background(BLACK);
+
+        // Rotation
+        let rotation_speed = 4.0;
+        if is_key_down(KeyCode::Left)  { ship.angle -= rotation_speed * dt; }
+        if is_key_down(KeyCode::Right) { ship.angle += rotation_speed * dt; }
+
+        // Thrust
+        let thrust_power = 200.0;
+        if is_key_down(KeyCode::Up) {
+            ship.velocity.x += ship.angle.cos() * thrust_power * dt;
+            ship.velocity.y += ship.angle.sin() * thrust_power * dt;
+        }
+
+        // Update position
+        ship.position += ship.velocity * dt;
+        wrap_position(&mut ship.position, screen_width(), screen_height());
+
+        // Slight drag
+        ship.velocity *= 0.99;
+
+        // Draw
+        draw_ship(ship.position, ship.angle);
+
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+                <p class="mb-4">Run it. Arrow keys turn and thrust. The ship drifts with momentum. You're flying!</p>
+                <p class="text-sm text-gray-400">Note: I used 2.618 instead of <code>5.0 * PI / 6.0</code> for brevity. In your actual code, use the full constant for clarity.</p>
+            </section>
+
+            <!-- Key Takeaways -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Key Takeaways</h2>
+                <div class="space-y-3">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Radians:</strong> 2π = 360°. Use <code>std::f32::consts::PI</code>.</p>
+                        <p class="text-sm text-gray-400">Let go of degrees. Radians are what the math functions expect.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Angle → Direction:</strong> <code>(cos(θ), sin(θ))</code></p>
+                        <p class="text-sm text-gray-400">This pair always gives a unit vector in the direction of θ.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Direction → Angle:</strong> <code>atan2(y, x)</code></p>
+                        <p class="text-sm text-gray-400">Y first. Always Y first. You will forget this at least once.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Rotating Points:</strong> Add offset to angle before cos/sin</p>
+                        <p class="text-sm text-gray-400">The ship's wings are just the nose angle ± some offset. Clean and simple.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="bg-thrust/10 border border-thrust rounded-lg p-4 mb-10">
+                <p class="text-thrust font-bold">🎯 Chapter 5 is where it all comes together.</p>
+                <p class="text-sm text-gray-300 mt-1">We'll refine the ship drawing, add thrust particles, and make the controls feel polished. But the hard math is done—you now understand the geometry that powers every 2D game.</p>
+            </div>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="03-movement.html" class="text-neon hover:underline">← Chapter 3: Movement</a>
+            <a href="05-player.html" class="text-neon hover:underline">Chapter 5: The Player Ship →</a>
+        </nav>
+    </div>
+</body>
+</html>
