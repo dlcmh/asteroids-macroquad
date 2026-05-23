@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 2: Screen Coordinates - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+        
+        <article>
+            <span class="text-neon text-sm">Chapter 2</span>
+            <h1 class="text-3xl font-bold mt-2 mb-8">Screen Coordinates & Drawing</h1>
+            
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">The Coordinate System</h2>
+                <p class="mb-4">Computer screens use a coordinate system that might surprise you:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li><strong>X goes right</strong> (like math class)</li>
+                    <li><strong>Y goes DOWN</strong> (opposite of math class!)</li>
+                    <li>The <strong>origin (0,0)</strong> is the TOP-LEFT corner</li>
+                </ul>
+                <div class="bg-gray-900 rounded-lg p-4 text-center mb-4">
+                    <pre class="text-neon text-left inline-block">
+(0,0) ──────────────► X increases (right)
+  │
+  │    Screen
+  │
+  ▼
+Y increases (down)</pre>
+                </div>
+                <p class="text-sm text-gray-400">This is why we use <code>screen_height - y</code> sometimes when we want "math-style" coordinates.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Getting Screen Dimensions</h2>
+                <p class="mb-4">macroquad gives us the window size dynamically:</p>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">let screen_w = screen_width();
+let screen_h = screen_height();
+
+// Center of the screen
+let center_x = screen_w / 2.0;
+let center_y = screen_h / 2.0;</code></pre>
+                </div>
+                <p class="text-sm text-gray-400">The center is where your ship will start. Remember: <code>f32</code> not <code>i32</code> — everything in graphics uses floating point!</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Drawing Shapes</h2>
+                <p class="mb-4">macroquad gives us simple drawing functions. Here are the ones we'll use most:</p>
+                
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <h3 class="text-neon font-bold">Lines</h3>
+                    <pre><code class="text-neon">draw_line(x1, y1, x2, y2, thickness, color);</code></pre>
+                    <p class="text-sm text-gray-400 mt-2">Draws a line from (x1,y1) to (x2,y2). Thickness in pixels.</p>
+                </div>
+                
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <h3 class="text-neon font-bold">Circles</h3>
+                    <pre><code class="text-neon">draw_circle(x, y, radius, color);</code></pre>
+                    <p class="text-sm text-gray-400 mt-2">Center at (x,y) with given radius.</p>
+                </div>
+                
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <h3 class="text-neon font-bold">Triangles (for ships!)</h3>
+                    <pre><code class="text-neon">draw_triangle(
+    Vec2::new(x1, y1),
+    Vec2::new(x2, y2),
+    Vec2::new(x3, y3),
+    color
+);</code></pre>
+                    <p class="text-sm text-gray-400 mt-2">Three points define a triangle. <code>Vec2</code> is just an (x,y) pair.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Your First Drawing: A Box at Center</h2>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">use macroquad::prelude::*;
+
+#[macroquad::main("Coordinates")]
+async fn main() {
+    loop {
+        clear_background(BLACK);
+        
+        let cx = screen_width() / 2.0;
+        let cy = screen_height() / 2.0;
+        
+        // Draw a crosshair at center
+        draw_line(cx - 20.0, cy, cx + 20.0, cy, 2.0, WHITE);
+        draw_line(cx, cy - 20.0, cx, cy + 20.0, 2.0, WHITE);
+        draw_circle(cx, cy, 5.0, GREEN);
+        
+        // Draw our "ship" for now - just a circle
+        draw_circle(cx, cy - 50.0, 15.0, YELLOW);
+        
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+                <p class="mb-4">Run this. You'll see a crosshair at center and a yellow circle above it. That circle will become our ship.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">The Vec2 Type</h2>
+                <p class="mb-4">You'll see <code>Vec2</code> everywhere. It's just:</p>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">struct Vec2 {
+    x: f32,
+    y: f32,
+}</code></pre>
+                </div>
+                <p class="mb-4">But it comes with useful math operations:</p>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">let position = Vec2::new(100.0, 200.0);
+let velocity = Vec2::new(1.5, -0.5);
+
+// Move position by velocity
+let new_pos = position + velocity;  // (101.5, 199.5)
+
+// Scale velocity
+let fast = velocity * 2.0;  // (3.0, -1.0)</code></pre>
+                </div>
+                <p class="text-sm text-gray-400">We'll use Vec2 for positions, velocities, and directions throughout this project.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Check Your Understanding</h2>
+                <ol class="list-decimal pl-6 space-y-2 mb-4">
+                    <li>Why does <code>y</code> increase downward? (Historical: CRT TVs scan top-to-bottom)</li>
+                    <li>What type are coordinates? (Always <code>f32</code> in graphics)</li>
+                    <li>Where is (0,0)? (Top-left corner)</li>
+                    <li>What's the center of an 800×600 window? (<code>(400.0, 300.0)</code>)</li>
+                </ol>
+            </section>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="01-setup.html" class="text-neon hover:underline">← Chapter 1: Setup</a>
+            <a href="03-movement.html" class="text-neon hover:underline">Chapter 3: Movement →</a>
+        </nav>
+    </div>
+</body>
+</html>

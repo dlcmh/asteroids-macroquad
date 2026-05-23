@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 1: Getting Started - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+        
+        <article>
+            <span class="text-neon text-sm">Chapter 1</span>
+            <h1 class="text-3xl font-bold mt-2 mb-8">Getting Started</h1>
+            
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">What We're Building</h2>
+                <p class="mb-4">Asteroids is the perfect first game. It has everything you need to learn:</p>
+                <ul class="list-disc pl-6 space-y-2 mb-4">
+                    <li>Player input handling</li>
+                    <li>Movement and physics simulation</li>
+                    <li>Collision detection</li>
+                    <li>Object spawning and destruction</li>
+                    <li>Score tracking and game state</li>
+                </ul>
+                <p>And it's simple enough that we can build it piece by piece, understanding every line of code.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Project Setup</h2>
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <code class="text-neon">cargo new asteroids-macroquad</code>
+                </div>
+                <p class="mb-4">Then add the macroquad dependency:</p>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <code class="text-neon">cargo add macroquad</code>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Your First Game Loop</h2>
+                <p class="mb-4">Every game has a "game loop" that runs 60 times per second. It does three things:</p>
+                <ol class="list-decimal pl-6 space-y-2 mb-4">
+                    <li><strong>Process input</strong> - What keys are pressed?</li>
+                    <li><strong>Update state</strong> - Move things, check collisions</li>
+                    <li><strong>Draw</strong> - Render everything to the screen</li>
+                </ol>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre><code class="text-neon">use macroquad::prelude::*;
+
+#[macroquad::main("Asteroids")]
+async fn main() {
+    loop {
+        // 1. Process input
+        // 2. Update state  
+        // 3. Draw everything
+        
+        clear_background(BLACK);
+        draw_text("Hello, Asteroids!", 20.0, 20.0, 30.0, WHITE);
+        
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+                <p>Run it with <code class="text-neon">cargo run</code>. You'll see a black window with white text. That's your canvas!</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Key Concepts</h2>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <h3 class="text-neon font-bold">clear_background(BLACK)</h3>
+                    <p class="text-sm text-gray-400">Erases the previous frame. Without this, things "smear" across the screen.</p>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <h3 class="text-neon font-bold">next_frame().await</h3>
+                    <p class="text-sm text-gray-400">Tells macroquad "I'm done drawing, show it on screen, then wait for the next frame." This is what gives you 60 FPS.</p>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <h3 class="text-neon font-bold">async fn main()</h3>
+                    <p class="text-sm text-gray-400">macroquad uses async Rust. Don't worry about this yet—just copy the pattern. The <code>#[macroquad::main]</code> attribute handles the setup for you.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-bold text-neon mb-4">Checking Your Work</h2>
+                <p class="mb-4">✅ Compiles without errors<br>
+                ✅ Opens a window<br>
+                ✅ Shows "Hello, Asteroids!" text<br>
+                ✅ Closes cleanly when you close the window</p>
+                <p class="text-gray-400">If all four check out, you're ready for Chapter 2!</p>
+            </section>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="../index.html" class="text-neon hover:underline">← Contents</a>
+            <a href="02-coordinates.html" class="text-neon hover:underline">Chapter 2: Coordinates →</a>
+        </nav>
+    </div>
+</body>
+</html>

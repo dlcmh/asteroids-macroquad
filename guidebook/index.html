@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Asteroids with Macroquad - A Novice Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-bold text-neon mb-4">🚀 Building Asteroids</h1>
+            <p class="text-xl text-gray-400">A Novice Guide to Game Development with Macroquad</p>
+            <div class="mt-6 h-1 bg-gradient-to-r from-transparent via-neon to-transparent"></div>
+        </header>
+
+        <div class="grid gap-6 mb-12">
+            <a href="pages/01-setup.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 1</span>
+                <h2 class="text-2xl font-bold mt-2">Getting Started</h2>
+                <p class="text-gray-400 mt-2">Project setup, window creation, and your first animation loop</p>
+            </a>
+
+            <a href="pages/02-coordinates.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 2</span>
+                <h2 class="text-2xl font-bold mt-2">Screen Coordinates & Drawing</h2>
+                <p class="text-gray-400 mt-2">Understanding 2D space, drawing shapes, and the coordinate system</p>
+            </a>
+
+            <a href="pages/03-movement.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 3</span>
+                <h2 class="text-2xl font-bold mt-2">Movement & Game Loops</h2>
+                <p class="text-gray-400 mt-2">Velocity, position updates, and Euler integration explained simply</p>
+            </a>
+
+            <a href="pages/04-angles.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 4</span>
+                <h2 class="text-2xl font-bold mt-2">Angles, Radians & atan2</h2>
+                <p class="text-gray-400 mt-2">Why radians? What is atan2? Rotation made visual</p>
+            </a>
+
+            <a href="pages/05-player.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 5</span>
+                <h2 class="text-2xl font-bold mt-2">The Player Ship</h2>
+                <p class="text-gray-400 mt-2">Drawing a triangle, rotation controls, and thrust mechanics</p>
+            </a>
+
+            <a href="pages/06-asteroids.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 6</span>
+                <h2 class="text-2xl font-bold mt-2">Asteroids!</h2>
+                <p class="text-gray-400 mt-2">Creating irregular shapes, random movement, and wrapping around the screen</p>
+            </a>
+
+            <a href="pages/07-shooting.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 7</span>
+                <h2 class="text-2xl font-bold mt-2">Shooting & Projectiles</h2>
+                <p class="text-gray-400 mt-2">Bullet vectors, lifetime management, and spawning mechanics</p>
+            </a>
+
+            <a href="pages/08-collisions.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 8</span>
+                <h2 class="text-2xl font-bold mt-2">Collision Detection</h2>
+                <p class="text-gray-400 mt-2">Circle collision math, distance formulas, and why we don't need perfection</p>
+            </a>
+
+            <a href="pages/09-scoring.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 9</span>
+                <h2 class="text-2xl font-bold mt-2">Scoring & Lives</h2>
+                <p class="text-gray-400 mt-2">Game state management, displaying text, and respawn mechanics</p>
+            </a>
+
+            <a href="pages/10-polish.html" class="block p-6 bg-gray-900 rounded-lg border border-gray-800 hover:border-neon transition-all">
+                <span class="text-neon text-sm">Chapter 10</span>
+                <h2 class="text-2xl font-bold mt-2">Polish & Particles</h2>
+                <p class="text-gray-400 mt-2">Screen shake, particle effects, and making it feel good</p>
+            </a>
+        </div>
+
+        <footer class="text-center text-gray-600 text-sm mt-12">
+            <p>Built for learning, not perfection. Make it work, make it fun, then make it pretty.</p>
+        </footer>
+    </div>
+</body>
+</html>
