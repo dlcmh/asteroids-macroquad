@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="revision" content="2">
+    <meta name="revision" content="3">
     <title>Chapter 5: The Player Ship - Asteroids Guide</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -348,12 +348,12 @@ fn draw_ship_body(position: Vec2, angle: f32) {
         position.y + angle.sin() * 20.0,
     );
     let left = Vec2::new(
-        position.x + (angle + 2.618).cos() * 12.0,
-        position.y + (angle + 2.618).sin() * 12.0,
-    );
-    let right = Vec2::new(
         position.x + (angle - 2.618).cos() * 12.0,
         position.y + (angle - 2.618).sin() * 12.0,
+    );
+    let right = Vec2::new(
+        position.x + (angle + 2.618).cos() * 12.0,
+        position.y + (angle + 2.618).sin() * 12.0,
     );
     draw_triangle(nose, left, right, WHITE);
 }
@@ -401,6 +401,24 @@ pub fn get_input() -> ShipInput {
         shoot: is_key_pressed(KeyCode::Space),
     }
 }</code></pre>
+                </div>
+
+                <!-- ASIDE: Blink Logic -->
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-6">
+                    <h4 class="text-neon font-bold mb-2">🧠 How the Blink Works</h4>
+                    <p class="text-sm mb-2">That one-liner packs a lot. Let's unpack it piece by piece:</p>
+                    <div class="bg-gray-900 rounded p-3 mb-3">
+                        <code class="text-neon text-xs">let blink = (self.invincible_timer * 10.0) as i32 % 2 == 0;</code>
+                    </div>
+                    <ol class="list-decimal pl-5 space-y-2 text-sm">
+                        <li><code class="text-neon">invincible_timer</code> counts down from 2.0 (set by respawn logic in Chapter 9) to 0.0 over two seconds.</li>
+                        <li><code class="text-neon">* 10.0</code> scales it to 20.0 → 0.0, so the number changes faster.</li>
+                        <li><code class="text-neon">as i32</code> chops off the decimal. As the timer drops, this integer steps down: 20, 19, 18, 17...</li>
+                        <li><code class="text-neon">% 2</code> gives the remainder when divided by 2. Even numbers → 0. Odd numbers → 1.</li>
+                        <li><code class="text-neon">== 0</code> is true for even numbers, false for odd ones.</li>
+                    </ol>
+                    <p class="text-sm mt-2">So <code>blink</code> toggles: <strong>true, false, true, false...</strong> about 10 times per second. When it's true, we skip drawing the ship. The player sees the ship flicker in and out—the universal game language for "you're temporarily invincible."</p>
+                    <p class="text-sm mt-2 text-gray-400">Change the <code>10.0</code> to <code>20.0</code> for a faster blink, or <code>5.0</code> for a slower one. The <code>% 2</code> creates the on/off pattern; the multiplier controls the speed.</p>
                 </div>
             </section>
 
