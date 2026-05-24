@@ -212,16 +212,16 @@ fn normalize_angle(angle: f32) -> f32 {
         position.y + angle.sin() * 20.0,
     );
 
-    // Back-left corner: angle + 150° (in radians: 5π/6)
+    // Back-left corner: angle - 150° — - is counter-clockwise
     let left_wing = Vec2::new(
-        position.x + (angle + 5.0 * std::f32::consts::PI / 6.0).cos() * 15.0,
-        position.y + (angle + 5.0 * std::f32::consts::PI / 6.0).sin() * 15.0,
-    );
-
-    // Back-right corner: angle - 150°
-    let right_wing = Vec2::new(
         position.x + (angle - 5.0 * std::f32::consts::PI / 6.0).cos() * 15.0,
         position.y + (angle - 5.0 * std::f32::consts::PI / 6.0).sin() * 15.0,
+    );
+
+    // Back-right corner: angle + 150° (in radians: 5π/6) — + is clockwise (Y down)
+    let right_wing = Vec2::new(
+        position.x + (angle + 5.0 * std::f32::consts::PI / 6.0).cos() * 15.0,
+        position.y + (angle + 5.0 * std::f32::consts::PI / 6.0).sin() * 15.0,
     );
 
     draw_triangle(nose, left_wing, right_wing, WHITE);
@@ -262,15 +262,19 @@ fn draw_ship(position: Vec2, angle: f32) {
         position.y + angle.sin() * 20.0,
     );
     let left_wing = Vec2::new(
-        position.x + (angle + 2.618).cos() * 15.0,
-        position.y + (angle + 2.618).sin() * 15.0,
-    );
-    let right_wing = Vec2::new(
         position.x + (angle - 2.618).cos() * 15.0,
         position.y + (angle - 2.618).sin() * 15.0,
     );
+    let right_wing = Vec2::new(
+        position.x + (angle + 2.618).cos() * 15.0,
+        position.y + (angle + 2.618).sin() * 15.0,
+    );
     draw_triangle(nose, left_wing, right_wing, WHITE);
 }
+
+// Tunable constants
+const THRUST_POWER: f32 = 200.0;
+const DRAG: f32 = 0.99;
 
 #[macroquad::main("Rotating Ship")]
 async fn main() {
@@ -290,10 +294,9 @@ async fn main() {
         if is_key_down(KeyCode::Right) { ship.angle += rotation_speed * dt; }
 
         // Thrust
-        let thrust_power = 200.0;
         if is_key_down(KeyCode::Up) {
-            ship.velocity.x += ship.angle.cos() * thrust_power * dt;
-            ship.velocity.y += ship.angle.sin() * thrust_power * dt;
+            ship.velocity.x += ship.angle.cos() * THRUST_POWER * dt;
+            ship.velocity.y += ship.angle.sin() * THRUST_POWER * dt;
         }
 
         // Update position
@@ -301,7 +304,7 @@ async fn main() {
         wrap_position(&mut ship.position, screen_width(), screen_height());
 
         // Slight drag
-        ship.velocity *= 0.99;
+        ship.velocity *= DRAG;
 
         // Draw
         draw_ship(ship.position, ship.angle);

@@ -1,8 +1,10 @@
 use macroquad::prelude::*;
+use std::f32::consts::PI;
 
 struct Ship {
     position: Vec2,
     velocity: Vec2,
+    angle: f32,
 }
 
 fn wrap_position(pos: &mut Vec2, screen_w: f32, screen_h: f32) {
@@ -20,56 +22,65 @@ fn wrap_position(pos: &mut Vec2, screen_w: f32, screen_h: f32) {
     }
 }
 
+fn draw_ship(position: Vec2, angle: f32) {
+    let nose = Vec2::new(
+        position.x + angle.cos() * 20.0,
+        position.y + angle.sin() * 20.0,
+    );
+    // 2.618 = 5.0 * PI / 6.0
+    let left_wing = Vec2::new(
+        position.x + (angle - 2.618).cos() * 15.0,
+        position.y + (angle - 2.618).sin() * 15.0,
+    );
+    let right_wing = Vec2::new(
+        position.x + (angle + 5.0 * PI / 6.0).cos() * 15.0,
+        position.y + (angle + 5.0 * PI / 6.0).sin() * 15.0,
+    );
+    draw_triangle(nose, left_wing, right_wing, WHITE);
+}
+
+// Tunable constants
+const THRUST_POWER: f32 = 200.0; // Pixels per second²
+// Acceleration (thrust) is in pixels per second²
+// (how fast velocity changes)
+const DRAG: f32 = 0.99;
+
 #[macroquad::main("Asteroids")]
 async fn main() {
     let mut ship = Ship {
         position: Vec2::new(screen_width() / 2.0, screen_height() / 2.0),
-        velocity: Vec2::new(100.0, 50.0), // Moving right and down
+        velocity: Vec2::new(0.0, 0.0),
+        angle: 0.0,
     };
 
     loop {
         let dt = get_frame_time();
         clear_background(BLACK);
 
-        // Keyboard control
-        let thrust_power = 200.0; // Pixels per second²
-        // Acceleration (thrust) is in pixels per second²
-        // (how fast velocity changes)
-        if is_key_down(KeyCode::Right) {
-            ship.velocity.x += thrust_power * dt
-        }
+        // Rotation
+        let rotation_speed = 4.0;
         if is_key_down(KeyCode::Left) {
-            ship.velocity.x -= thrust_power * dt
+            ship.angle -= rotation_speed * dt
         }
+        if is_key_down(KeyCode::Right) {
+            ship.angle += rotation_speed * dt
+        }
+
+        // Thrust
         if is_key_down(KeyCode::Up) {
-            ship.velocity.y -= thrust_power * dt // Negative is UP
-        }
-        if is_key_down(KeyCode::Down) {
-            ship.velocity.y += thrust_power * dt // Positive is DOWN
+            ship.velocity.x += ship.angle.cos() * THRUST_POWER * dt;
+            ship.velocity.y += ship.angle.sin() * THRUST_POWER * dt;
         }
 
-        // Update: Euler integration
+        // Update position
         ship.position += ship.velocity * dt;
-
-        // Apply slight drag each next_frame
-        let drag = 0.99; // Multiply velocity by this each frame
-        ship.velocity *= drag;
-
-        // Update: Screen wrapping
         wrap_position(&mut ship.position, screen_width(), screen_height());
 
-        // Draw the ship (a circle for now)
-        draw_circle(ship.position.x, ship.position.y, 15.0, YELLOW);
+        // Slight drag
+        ship.velocity *= DRAG;
 
-        // Draw velocity vector as a line
-        draw_line(
-            ship.position.x,
-            ship.position.y,
-            ship.position.x + ship.velocity.x * 0.1,
-            ship.position.y + ship.velocity.y * 0.1,
-            2.0,
-            RED,
-        );
+        // Draw the ship
+        draw_ship(ship.position, ship.angle);
 
         next_frame().await;
     }
