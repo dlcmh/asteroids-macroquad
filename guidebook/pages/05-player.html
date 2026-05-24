@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="revision" content="2">
+    <title>Chapter 5: The Player Ship - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre { overflow-x: auto; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366',
+                        deep: '#0d0d2b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+
+        <article>
+            <span class="text-neon text-sm">Chapter 5</span>
+            <h1 class="text-3xl font-bold mt-2 mb-4">The Player Ship</h1>
+            <p class="text-gray-400 mb-8 text-lg">Turning a triangle into a spaceship. Thrust flames, responsive controls, and the first real "feel" of the game.</p>
+
+            <!-- Ship Design -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Designing the Ship Shape</h2>
+                <p class="mb-4">The classic Asteroids ship is a simple triangle—pointed at the nose, wide at the back. We already drew one in Chapter 4, but let's refine the proportions and understand what makes it look like a ship.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Ship dimensions (tweak these to your taste)
+const SHIP_LENGTH: f32 = 20.0;  // Nose to center
+const SHIP_WIDTH: f32 = 12.0;   // Half the base width
+const WING_ANGLE: f32 = 2.618;  // 150° in radians (5π/6)
+
+fn draw_ship(position: Vec2, angle: f32) {
+    // Nose: directly ahead
+    let nose = Vec2::new(
+        position.x + angle.cos() * SHIP_LENGTH,
+        position.y + angle.sin() * SHIP_LENGTH,
+    );
+
+    // Left wing: angle - WING_ANGLE — - is counter-clockwise
+    let left_wing = Vec2::new(
+        position.x + (angle - WING_ANGLE).cos() * SHIP_WIDTH,
+        position.y + (angle - WING_ANGLE).sin() * SHIP_WIDTH,
+    );
+
+    // Right wing: angle + WING_ANGLE — + is clockwise (Y down)
+    let right_wing = Vec2::new(
+        position.x + (angle + WING_ANGLE).cos() * SHIP_WIDTH,
+        position.y + (angle + WING_ANGLE).sin() * SHIP_WIDTH,
+    );
+
+    draw_triangle(nose, left_wing, right_wing, WHITE);
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Why 150° for the wings?</h4>
+                    <p class="text-sm">Think of the ship as an arrowhead. The nose points forward (0° offset). If the wings were at 180° they'd form a straight line. At 90° they'd make a right angle. At 150° you get a sleek, recognizable ship shape. Try 140° for a wider ship or 160° for a narrower one—it's an artistic choice, not a mathematical one.</p>
+                </div>
+            </section>
+
+            <!-- The Ship Struct Grows Up -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Complete Ship Struct</h2>
+                <p class="mb-4">Our ship needs to track more than just position and velocity now. Here's everything a proper ship needs:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">struct Ship {
+    position: Vec2,      // Where on screen
+    velocity: Vec2,      // Drift speed and direction
+    angle: f32,          // Which way it's pointing (radians)
+    is_thrusting: bool,  // Is the thruster firing?
+    is_dead: bool,       // Did we hit an asteroid?
+    invincible_timer: f32, // Brief invincibility after respawn
+}</code></pre>
+                </div>
+
+                <div class="space-y-3 mb-6">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">is_thrusting</strong> — We need this to know whether to draw the flame. The player might be pressing Up, or not.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">is_dead</strong> — When the ship hits an asteroid, we don't immediately delete it. We play a death animation, then respawn. This flag tells the game loop "don't let the player fly a dead ship."</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">invincible_timer</strong> — After respawning, the player gets a couple seconds of invulnerability. This timer counts down. While > 0, collisions are ignored. We'll implement this in Chapter 9.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Input Handling -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Handling Input Cleanly</h2>
+                <p class="mb-4">Instead of scattering <code>is_key_down</code> calls through the update logic, collect all input at the top of the loop. This makes the ship's behavior easy to read and modify:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">struct ShipInput {
+    rotate_left: bool,
+    rotate_right: bool,
+    thrust: bool,
+    shoot: bool,
+}
+
+fn get_ship_input() -> ShipInput {
+    ShipInput {
+        rotate_left: is_key_down(KeyCode::Left),
+        rotate_right: is_key_down(KeyCode::Right),
+        thrust: is_key_down(KeyCode::Up),
+        shoot: is_key_pressed(KeyCode::Space), // Single press, not hold
+    }
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">💡 is_key_down vs is_key_pressed</h4>
+                    <p class="text-sm"><code>is_key_down</code> returns true every frame while the key is held. Use it for continuous actions: turning, thrusting. <code>is_key_pressed</code> returns true only on the frame the key first goes down. Use it for one-shot actions: shooting a bullet, pausing the game.</p>
+                </div>
+            </section>
+
+            <!-- Ship Update -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Ship Update Function</h2>
+                <p class="mb-4">All the physics from Chapters 3 and 4, now organized into a clean function:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">const ROTATION_SPEED: f32 = 4.0;    // Radians per second
+const THRUST_POWER: f32 = 300.0;     // Acceleration in pixels/sec²
+const DRAG: f32 = 0.98;              // Velocity retained per frame
+const MAX_SPEED: f32 = 400.0;        // Speed cap
+
+fn update_ship(ship: &mut Ship, input: &ShipInput, dt: f32) {
+    // Rotation
+    if input.rotate_left {
+        ship.angle -= ROTATION_SPEED * dt;
+    }
+    if input.rotate_right {
+        ship.angle += ROTATION_SPEED * dt;
+    }
+
+    // Thrust
+    ship.is_thrusting = input.thrust;
+    if ship.is_thrusting {
+        ship.velocity.x += ship.angle.cos() * THRUST_POWER * dt;
+        ship.velocity.y += ship.angle.sin() * THRUST_POWER * dt;
+    }
+
+    // Apply drag
+    ship.velocity *= DRAG;
+
+    // Clamp speed
+    let speed = ship.velocity.length();
+    if speed > MAX_SPEED {
+        ship.velocity = ship.velocity.normalize_or_zero() * MAX_SPEED;
+    }
+
+    // Update position
+    ship.position += ship.velocity * dt;
+    wrap_position(&mut ship.position, screen_width(), screen_height());
+}</code></pre>
+                </div>
+
+                <!-- NEW ASIDE: normalize and normalize_or_zero -->
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-6">
+                    <h4 class="text-neon font-bold mb-2">🧠 normalize() and normalize_or_zero()</h4>
+                    <p class="text-sm mb-2">Every vector has a <strong>direction</strong> and a <strong>length</strong>. Normalizing keeps the direction but sets the length to exactly 1.0—a "unit vector" pointing the same way.</p>
+                    <div class="bg-gray-900 rounded p-3 mb-2">
+                        <pre><code class="text-neon text-xs">let v = Vec2::new(300.0, 400.0);
+v.length();        // 500.0 (Pythagoras: √(300² + 400²))
+v.normalize();     // Vec2(0.6, 0.8) — same direction, length 1.0</code></pre>
+                    </div>
+                    <p class="text-sm mb-2">Once you have a unit vector, multiply by any speed to get exactly that speed in the original direction. That's what the speed cap does: <strong>same heading, controlled magnitude</strong>.</p>
+                    <p class="text-sm"><code>normalize_or_zero()</code> is the safe version. A zero-length vector has no direction—normalizing it would divide by zero and crash. <code>normalize_or_zero()</code> just returns <code>Vec2::ZERO</code> instead. Use it whenever the vector <em>might</em> be zero (like a stationary ship).</p>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-thrust mb-4">
+                    <h4 class="text-thrust font-bold mb-2">🚨 Speed Clamping is Important</h4>
+                    <p class="text-sm">Without a maximum speed, the player could thrust forever and reach ridiculous velocities. The ship would zip across the screen in a single frame, making the game unplayable. <code>clamp_length</code> or the normalize-and-multiply trick above caps the top speed.</p>
+                </div>
+            </section>
+
+            <!-- Thrust Flame -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Drawing the Thrust Flame</h2>
+                <p class="mb-4">When the ship thrusts, we draw a flickering flame behind it. The flame is just a triangle that changes size randomly each frame:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn draw_thrust_flame(position: Vec2, angle: f32) {
+    // Random flicker: flame length varies each frame
+    let flame_length = rand::gen_range(8.0, 20.0);
+    let flame_width = rand::gen_range(3.0, 7.0);
+
+    // The flame comes out the BACK of the ship
+    let back_angle = angle + std::f32::consts::PI; // Opposite direction
+
+    // Base of flame (at the ship's back)
+    let base = Vec2::new(
+        position.x + back_angle.cos() * 8.0,
+        position.y + back_angle.sin() * 8.0,
+    );
+
+    // Tip of flame (further back, varies with flicker)
+    let tip = Vec2::new(
+        base.x + back_angle.cos() * flame_length,
+        base.y + back_angle.sin() * flame_length,
+    );
+
+    // Two sides of the flame triangle
+    let left = Vec2::new(
+        base.x + (back_angle + 1.5).cos() * flame_width,
+        base.y + (back_angle + 1.5).sin() * flame_width,
+    );
+    let right = Vec2::new(
+        base.x + (back_angle - 1.5).cos() * flame_width,
+        base.y + (back_angle - 1.5).sin() * flame_width,
+    );
+
+    // Fire colors: orange core, red edges
+    draw_triangle(tip, left, right, ORANGE);
+    draw_triangle(tip, base, right, RED);
+}</code></pre>
+                </div>
+
+                <p class="mb-4">The key insight: the flame points <strong>opposite</strong> to the ship's angle. When the ship faces right (angle 0), the flame goes left (angle π). We compute this with <code>angle + PI</code>.</p>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Why two triangles?</h4>
+                    <p class="text-sm">A single triangle looks flat. Two overlapping triangles with slightly different colors create a more natural flame shape. The orange one is tall and narrow (the core), the red one is shorter and wider (the outer glow). It's a cheap trick that looks great.</p>
+                </div>
+            </section>
+
+            <!-- Putting It Together -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Complete Ship Module</h2>
+                <p class="mb-4">Everything we've built, in one place. This is a complete <code>ship.rs</code> module:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+pub struct Ship {
+    pub position: Vec2,
+    pub velocity: Vec2,
+    pub angle: f32,
+    pub is_thrusting: bool,
+    pub is_dead: bool,
+    pub invincible_timer: f32,
+}
+
+pub struct ShipInput {
+    pub rotate_left: bool,
+    pub rotate_right: bool,
+    pub thrust: bool,
+    pub shoot: bool,
+}
+
+const ROTATION_SPEED: f32 = 4.0;
+const THRUST_POWER: f32 = 300.0;
+const DRAG: f32 = 0.98;
+const MAX_SPEED: f32 = 400.0;
+
+impl Ship {
+    pub fn new() -> Self {
+        Self {
+            position: Vec2::new(screen_width() / 2.0, screen_height() / 2.0),
+            velocity: Vec2::ZERO,
+            angle: 0.0,
+            is_thrusting: false,
+            is_dead: false,
+            invincible_timer: 0.0,
+        }
+    }
+
+    pub fn update(&mut self, input: &ShipInput, dt: f32) {
+        if self.is_dead {
+            return;
+        }
+
+        // Count down invincibility
+        if self.invincible_timer > 0.0 {
+            self.invincible_timer -= dt;
+        }
+
+        // Rotation
+        if input.rotate_left  { self.angle -= ROTATION_SPEED * dt; }
+        if input.rotate_right { self.angle += ROTATION_SPEED * dt; }
+
+        // Thrust
+        self.is_thrusting = input.thrust;
+        if self.is_thrusting {
+            self.velocity.x += self.angle.cos() * THRUST_POWER * dt;
+            self.velocity.y += self.angle.sin() * THRUST_POWER * dt;
+        }
+
+        // Drag and speed limit
+        self.velocity *= DRAG;
+        let speed = self.velocity.length();
+        if speed > MAX_SPEED {
+            self.velocity = self.velocity.normalize_or_zero() * MAX_SPEED;
+        }
+
+        // Move
+        self.position += self.velocity * dt;
+        wrap_position(&mut self.position);
+    }
+
+    pub fn draw(&self) {
+        if self.is_dead {
+            return;
+        }
+
+        // Blink when invincible
+        if self.invincible_timer > 0.0 {
+            let blink = (self.invincible_timer * 10.0) as i32 % 2 == 0;
+            if blink {
+                return; // Skip drawing this frame = blinking effect
+            }
+        }
+
+        // Draw thrust flame first (behind the ship)
+        if self.is_thrusting {
+            draw_thrust_flame(self.position, self.angle);
+        }
+
+        // Draw the ship body
+        draw_ship_body(self.position, self.angle);
+    }
+}
+
+fn draw_ship_body(position: Vec2, angle: f32) {
+    let nose = Vec2::new(
+        position.x + angle.cos() * 20.0,
+        position.y + angle.sin() * 20.0,
+    );
+    let left = Vec2::new(
+        position.x + (angle + 2.618).cos() * 12.0,
+        position.y + (angle + 2.618).sin() * 12.0,
+    );
+    let right = Vec2::new(
+        position.x + (angle - 2.618).cos() * 12.0,
+        position.y + (angle - 2.618).sin() * 12.0,
+    );
+    draw_triangle(nose, left, right, WHITE);
+}
+
+fn draw_thrust_flame(position: Vec2, angle: f32) {
+    let back = angle + std::f32::consts::PI;
+    let flame_len = rand::gen_range(8.0, 20.0);
+    let flame_w = rand::gen_range(3.0, 7.0);
+
+    let base = Vec2::new(
+        position.x + back.cos() * 8.0,
+        position.y + back.sin() * 8.0,
+    );
+    let tip = Vec2::new(
+        base.x + back.cos() * flame_len,
+        base.y + back.sin() * flame_len,
+    );
+    let l = Vec2::new(
+        base.x + (back + 1.5).cos() * flame_w,
+        base.y + (back + 1.5).sin() * flame_w,
+    );
+    let r = Vec2::new(
+        base.x + (back - 1.5).cos() * flame_w,
+        base.y + (back - 1.5).sin() * flame_w,
+    );
+
+    draw_triangle(tip, l, r, ORANGE);
+    draw_triangle(tip, base, r, RED);
+}
+
+fn wrap_position(pos: &mut Vec2) {
+    let w = screen_width();
+    let h = screen_height();
+    if pos.x < 0.0 { pos.x += w; }
+    if pos.x > w    { pos.x -= w; }
+    if pos.y < 0.0 { pos.y += h; }
+    if pos.y > h    { pos.y -= h; }
+}
+
+pub fn get_input() -> ShipInput {
+    ShipInput {
+        rotate_left: is_key_down(KeyCode::Left),
+        rotate_right: is_key_down(KeyCode::Right),
+        thrust: is_key_down(KeyCode::Up),
+        shoot: is_key_pressed(KeyCode::Space),
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- main.rs -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Your New main.rs</h2>
+                <p class="mb-4">With the ship logic moved to its own module, <code>main.rs</code> becomes beautifully simple:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+mod ship;
+use ship::Ship;
+
+#[macroquad::main("Asteroids")]
+async fn main() {
+    let mut ship = Ship::new();
+
+    loop {
+        let dt = get_frame_time();
+        clear_background(BLACK);
+
+        // Gather input
+        let input = ship::get_input();
+
+        // Update
+        ship.update(&input, dt);
+
+        // Draw
+        ship.draw();
+
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+                <p class="mb-4">Twenty lines. That's the power of organizing code into modules. The game loop is readable at a glance, and all the ship complexity lives in <code>ship.rs</code> where it belongs.</p>
+            </section>
+
+            <!-- Polish -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Making It Feel Good</h2>
+                <p class="mb-4">The difference between a demo and a game is in the details. Here are small tweaks that dramatically improve how the ship feels:</p>
+
+                <div class="space-y-4">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <h3 class="text-neon font-bold">Progressive Thrust</h3>
+                        <p class="text-sm text-gray-300 mt-1">Instead of instant full thrust, ramp it up over a few frames. This gives a sense of weight and power buildup.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <h3 class="text-neon font-bold">Rotation Inertia</h3>
+                        <p class="text-sm text-gray-300 mt-1">The ship doesn't stop rotating instantly when you release the key. Add a rotational velocity that decays with drag, just like linear velocity. Feels much more spaceship-like.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <h3 class="text-neon font-bold">Screen Shake on Death</h3>
+                        <p class="text-sm text-gray-300 mt-1">When the ship dies, offset the camera randomly for half a second. It's a single line of code that sells the impact. We'll add this in Chapter 10.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <h3 class="text-neon font-bold">Engine Sound (Audio)</h3>
+                        <p class="text-sm text-gray-300 mt-1">A low hum when thrusting, pitch-shifted by velocity. Audio is optional but transformative. macroquad has basic audio support if you want to explore it later.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Key Takeaways -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Key Takeaways</h2>
+                <div class="space-y-3">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Organize Early:</strong> Ship logic in <code>ship.rs</code></p>
+                        <p class="text-sm text-gray-400">A clean main loop means you can add asteroids, bullets, and UI without chaos.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Input Structs:</strong> Collect all input at once</p>
+                        <p class="text-sm text-gray-400">Decouples "what keys are pressed" from "what does the ship do about it."</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Speed Cap:</strong> Always limit player velocity</p>
+                        <p class="text-sm text-gray-400">Unbounded speed makes games uncontrollable. Pick a cap that feels fast but fair.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                        <p><strong class="text-neon">Flame = Angle + PI:</strong> Opposite direction every time</p>
+                        <p class="text-sm text-gray-400">The thrust goes behind the ship. Simple addition, powerful visual.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="bg-thrust/10 border border-thrust rounded-lg p-4 mb-10">
+                <p class="text-thrust font-bold">🎯 Next: Rocks in space.</p>
+                <p class="text-sm text-gray-300 mt-1">Chapter 6 creates the asteroids—irregular polygons, random spawning, and the screen-wrapping behavior that makes them feel like a genuine threat. Your ship will finally have something to dodge.</p>
+            </div>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="04-angles.html" class="text-neon hover:underline">← Chapter 4: Angles & atan2</a>
+            <a href="06-asteroids.html" class="text-neon hover:underline">Chapter 6: Asteroids →</a>
+        </nav>
+    </div>
+</body>
+</html>
