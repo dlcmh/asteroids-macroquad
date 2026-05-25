@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="revision" content="1">
+    <meta name="revision" content="2">
     <title>Chapter 6: Asteroids! - Asteroids Guide</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -131,12 +131,14 @@
                 </div>
 
                 <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
-                    <h4 class="text-neon font-bold mb-2">🧠 Rotation Math Refresher</h4>
-                    <p class="text-sm">To rotate a point (x, y) by angle θ:</p>
+                    <h4 class="text-neon font-bold mb-2">🧠 How the Rotation Actually Works</h4>
+                    <p class="text-sm">Every vertex in <code>shape</code> is an offset like <code>(10.0, 5.0)</code> — "10 pixels ahead, 5 pixels to the side" from the asteroid's centre. To make the asteroid spin, we rotate every vertex by the same angle before adding the centre position.</p>
+                    <p class="text-sm mt-2">The formula to rotate any point (x, y) by angle θ is:</p>
                     <div class="bg-gray-900 rounded p-3 mt-2">
-                        <code class="text-neon text-xs">new_x = x * cos(θ) - y * sin(θ)<br>new_y = x * sin(θ) + y * cos(θ)</code>
+                        <code class="text-neon text-xs">rotated_x = x * cos(θ) - y * sin(θ)<br>rotated_y = x * sin(θ) + y * cos(θ)</code>
                     </div>
-                    <p class="text-sm mt-2">This is different from the ship drawing in Chapter 5, where we computed rotated points directly using cos/sin of the angle. Here we're rotating pre-stored vertices. Both approaches are valid—this one is cleaner when you have a list of points to rotate together.</p>
+                    <p class="text-sm mt-2">This is the same rotation math that Chapter 5 used for the ship triangle — in Chapter 5 we just wrote <code>(angle + SWEEP).cos()</code> directly. Here we compute <code>cos</code> and <code>sin</code> once, then apply them to every vertex with this formula. That's more efficient when you have 10+ vertices per asteroid.</p>
+                    <p class="text-sm mt-2 text-gray-400">Test it yourself: vertex <code>(10.0, 0.0)</code> at θ = 0° → <code>(10.0, 0.0)</code>. At θ = 90° (cos=0, sin=1) → <code>(0.0, 10.0)</code>. It spins.</p>
                 </div>
 
                 <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
