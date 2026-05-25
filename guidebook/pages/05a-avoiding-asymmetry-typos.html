@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="revision" content="1">
+    <title>Chapter 5a: Avoiding Asymmetry Typos - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre { overflow-x: auto; }
+        svg.shape-demo { display: block; margin: 0 auto; max-width: 100%; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366',
+                        deep: '#0d0d2b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+
+        <article>
+            <span class="text-neon text-sm">Chapter 5a</span>
+            <h1 class="text-3xl font-bold mt-2 mb-4">Avoiding Asymmetry Typos</h1>
+            <p class="text-gray-400 mb-8 text-lg">One wrong number can make your rocket's flame shoot out sideways. Here's how experts never make that mistake.</p>
+
+            <!-- The Problem -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Bug That's Too Easy to Write</h2>
+                <p class="mb-4">When you draw a symmetrical shape like a ship or a flame, you're usually computing points on both sides of a centre line. In code, that means two very similar lines:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">let left = Vec2::new(
+    base.x + (back + 1.5).cos() * spread,
+    base.y + (back + 1.5).sin() * spread,
+);
+let right = Vec2::new(
+    base.x + (back + 1.5).cos() * spread,
+    base.y + (back - 1.5).sin() * spread,  // ← see it?
+);</code></pre>
+                </div>
+
+                <p class="mb-4"><code>back + 1.5</code> on x, but <code>back - 1.5</code> on y. The left and right edges of the flame don't rotate together. At some angles the triangle collapses into a skinny line, spraying flame out the side of your ship instead of behind it.</p>
+
+                <p class="mb-6">This is the <strong class="text-thrust">asymmetry typo</strong>. It happens because you're typing the same pattern four times (<code>something.cos()</code>, <code>something.sin()</code> × 2 points) and your brain autocompletes the third line from the first without checking.</p>
+
+                <!-- SVG: before/after flame -->
+                <div class="bg-deep rounded-lg p-6 mb-6">
+                    <h3 class="text-neon font-bold mb-4 text-center">What the bug looks like</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center">
+                            <svg class="shape-demo" viewBox="0 0 120 200" width="120" height="200">
+                                <!-- ship triangle pointing up -->
+                                <polygon points="60,10 40,70 80,70" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <!-- flame – skewed right (should point down, away from ship) -->
+                                <polygon points="60,140 50,80 70,90" fill="#ff3366" opacity="0.7"/>
+                                <text x="60" y="165" text-anchor="middle" fill="#ff3366" font-size="10">BUG</text>
+                                <text x="60" y="180" text-anchor="middle" fill="#888" font-size="8">flame skewed</text>
+                            </svg>
+                        </div>
+                        <div class="text-center">
+                            <svg class="shape-demo" viewBox="0 0 120 200" width="120" height="200">
+                                <!-- ship triangle pointing up -->
+                                <polygon points="60,10 40,70 80,70" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <!-- flame – centred, pointing down -->
+                                <polygon points="60,140 45,80 75,80" fill="#ff3366" opacity="0.7"/>
+                                <text x="60" y="165" text-anchor="middle" fill="#00ff88" font-size="10">FIXED</text>
+                                <text x="60" y="180" text-anchor="middle" fill="#888" font-size="8">flame centred</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pattern 1: Helper function -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Pattern 1: One Helper to Rule Them All</h2>
+                <p class="mb-4">Write a tiny helper that converts an angle and distance into a point. Then every shape uses it, and there's only <strong>one</strong> place where <code>cos</code> and <code>sin</code> appear together:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">/// Return a point `dist` pixels from `centre` in direction `angle`.
+fn offset(centre: Vec2, angle: f32, dist: f32) -> Vec2 {
+    Vec2::new(
+        centre.x + angle.cos() * dist,
+        centre.y + angle.sin() * dist,
+    )
+}</code></pre>
+                </div>
+
+                <p class="mb-4">Now drawing becomes a list of almost-English statements. Hard to get wrong:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn draw_flame(centre: Vec2, nose_angle: f32) {
+    let back = nose_angle + PI;          // opposite direction
+
+    let base  = offset(centre, back, 8.0);
+    let tip   = offset(base,   back, rand::gen_range(8.0, 20.0));
+    let left  = offset(base,   back + 1.5, rand::gen_range(3.0, 7.0));
+    let right = offset(base,   back - 1.5, rand::gen_range(3.0, 7.0));
+
+    draw_triangle(tip, left, right, ORANGE);
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                    <p class="text-sm"><strong class="text-neon">Key insight:</strong> <code>offset</code> packs the <code>cos</code>/<code>sin</code> pair into one function. You type it once, test it once, and never think about it again. Every point derived from it is guaranteed internally consistent.</p>
+                </div>
+            </section>
+
+            <!-- Pattern 2: Local offsets + rotation matrix -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Pattern 2: Design the Shape in Local Space</h2>
+                <p class="mb-4">Instead of computing each vertex from scratch, describe the shape relative to the ship's centre and rotate the whole thing at once:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Vertices of the ship in "local space":
+//   (forward distance, sideways distance)
+const HULL: [(f32, f32); 3] = [
+    ( 20.0,  0.0),   // nose: straight ahead
+    (-12.0, -8.0),   // left wing: back & left
+    (-12.0,  8.0),   // right wing: back & right
+];</code></pre>
+                </div>
+
+                <p class="mb-4">Then apply a rotation matrix — one formula that spins every point by the ship's angle:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn draw_hull(centre: Vec2, angle: f32) {
+    let cos = angle.cos();
+    let sin = angle.sin();
+
+    // Rotate every local vertex by the ship's angle
+    let points: [Vec2; 3] = HULL.map(|(dx, dy)| {
+        Vec2::new(
+            centre.x + dx * cos - dy * sin,
+            centre.y + dx * sin + dy * cos,
+        )
+    });
+
+    draw_triangle(points[0], points[1], points[2], WHITE);
+}</code></pre>
+                </div>
+
+                <!-- SVG: rotation matrix visual -->
+                <div class="bg-deep rounded-lg p-6 mb-6">
+                    <h3 class="text-neon font-bold mb-4 text-center">Same local shape, any rotation</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center">
+                            <svg viewBox="0 0 100 120" width="100" height="120">
+                                <!-- 0° right -->
+                                <polygon points="65,50 40,40 40,60" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <text x="50" y="95" text-anchor="middle" fill="#888" font-size="10">0°</text>
+                                <text x="50" y="112" text-anchor="middle" fill="#666" font-size="10">→ right</text>
+                            </svg>
+                        </div>
+                        <div class="text-center">
+                            <svg viewBox="0 0 100 120" width="100" height="120">
+                                <!-- 45° clockwise (Y down) — pointing down-right -->
+                                <polygon points="60,60 35,45 50,35" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <text x="50" y="95" text-anchor="middle" fill="#888" font-size="10">45°</text>
+                                <text x="50" y="112" text-anchor="middle" fill="#666" font-size="10">↘ down-right</text>
+                            </svg>
+                        </div>
+                        <div class="text-center">
+                            <svg viewBox="0 0 100 120" width="100" height="120">
+                                <!-- 90° clockwise — pointing down -->
+                                <polygon points="50,65 40,40 60,40" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <text x="50" y="95" text-anchor="middle" fill="#888" font-size="10">90°</text>
+                                <text x="50" y="112" text-anchor="middle" fill="#666" font-size="10">↓ down</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-4 text-center">The rotation matrix handles every angle. No per-vertex trigonometry, no asymmetry bugs.</p>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                    <p class="text-sm"><strong class="text-neon">Key insight:</strong> This is the number-one technique professional game devs use. You describe the shape once in local coordinates (centred at 0,0), and the rotation+translation code handles the rest. Adding a new vertex doesn't require any new trigonometry.</p>
+                </div>
+            </section>
+
+            <!-- Pattern 3: Name the sub-angles -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Pattern 3: Give Every Angle a Name</h2>
+                <p class="mb-4">When you're computing two points from two similar angles, pull each angle into a named variable before using it:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Instead of:
+let left = Vec2::new(
+    base.x + (back + 1.5).cos() * spread,
+    base.y + (back + 1.5).sin() * spread,
+);
+let right = Vec2::new(
+    base.x + (back + 1.5).cos() * spread,   // copy-paste: left over
+    base.y + (back - 1.5).sin() * spread,   // but changed here — bug!
+);
+
+// Name them:
+let left_angle  = back + 1.5;
+let right_angle = back - 1.5;
+
+let left  = offset(base, left_angle,  spread);
+let right = offset(base, right_angle, spread);
+
+// Now the asymmetry is visible in the variable names.</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                    <p class="text-sm"><strong class="text-neon">Key insight:</strong> A named variable changes the visual pattern from "four nearly identical lines" to "two clearly different angles, each used consistently." Code reviews catch mismatched variable names instantly. They don't catch mismatched inline expressions.</p>
+                </div>
+            </section>
+
+            <!-- Pattern 4: Mirror -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Pattern 4: Mirror One Side</h2>
+                <p class="mb-4">If your shape is perfectly symmetrical about the centre line, compute one wing and derive the other by reflecting it:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">// Compute the left wing...
+let left = offset(centre, angle - SWEEP, HALF_BASE);
+
+// ...and mirror it across the centre to get the right wing.
+let right = Vec2::new(
+    2.0 * centre.x - left.x,
+    2.0 * centre.y - left.y,
+);</code></pre>
+                </div>
+
+                <p class="mb-4">This works because for any point on the left side, the mirrored right side is the same distance from centre but on the opposite side. No second angle computation at all.</p>
+
+                <div class="bg-deep rounded-lg p-4 border-l-4 border-neon">
+                    <p class="text-sm"><strong class="text-neon">Key insight:</strong> Reflection is foolproof — there's literally no second angle to get wrong. The trade-off is it only works for shapes that are perfectly symmetrical. Most game objects are.</p>
+                </div>
+            </section>
+
+            <!-- Debugging -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">How to Catch These Bugs Fast</h2>
+                <div class="space-y-4">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-thrust">
+                        <h3 class="text-thrust font-bold">🔄 The Spin Test</h3>
+                        <p class="text-sm text-gray-300 mt-1">Before adding gameplay, add a simple rotation loop that spins the ship 360° automatically. Watch the flame and the wings. If the flame wobbles or the ship seems to change shape as it turns, you have an asymmetry bug. This catches the problem in two seconds.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-thrust">
+                        <h3 class="text-thrust font-bold">⭕ The Centre Dot</h3>
+                        <p class="text-sm text-gray-300 mt-1">Draw a small dot at the ship's centre and a circle at the flame base. Now you can see visually whether the flame base is actually centred behind the ship. Sometimes the offset is correct but the base position is wrong.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-thrust">
+                        <h3 class="text-thrust font-bold">📐 Print the Angles</h3>
+                        <p class="text-sm text-gray-300 mt-1">Add a quick <code>println!("left angle: {}, right angle: {}", left_angle, right_angle);</code> and check they're the same magnitude with opposite signs. This catches the typo in the terminal before you even look at the screen.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Which Pattern Should You Use?</h2>
+                <div class="grid gap-4">
+                    <div class="bg-deep rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-neon font-bold">🆕 Beginners: Use Pattern 1 (offset helper)</h3>
+                        <p class="text-sm text-gray-400">Write the <code>offset</code> function once. Every shape then becomes a list of ordinary-looking lines. It's the smallest change from the code you're already writing and eliminates the most common bug instantly.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-neon font-bold">📐 Intermediate: Use Pattern 2 (local offsets + rotation matrix)</h3>
+                        <p class="text-sm text-gray-400">Once you're comfortable with the math, this is the professional standard. It scales to complex shapes (8-gon asteroids, detailed ships) with zero additional trigonometry per vertex.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-neon font-bold">🧠 Always: Use Patterns 3 & 4 (named angles, mirror)</h3>
+                        <p class="text-sm text-gray-400">These are habits that cost nothing and make bugs visible. A named variable is easier to read and harder to mistype. Mirroring eliminates the second computation entirely.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="bg-thrust/10 border border-thrust rounded-lg p-4 mb-10">
+                <p class="text-thrust font-bold">🎯 Before you write another triangle, write <code>offset</code>.</p>
+                <p class="text-sm text-gray-300 mt-1">It's three lines that will save you from debugging a flame that shoots sideways for twenty minutes. Trust me — I'm writing this chapter because I made exactly that mistake.</p>
+            </div>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="05-player.html" class="text-neon hover:underline">← Chapter 5: The Player Ship</a>
+            <a href="06-asteroids.html" class="text-neon hover:underline">Chapter 6: Asteroids →</a>
+        </nav>
+    </div>
+</body>
+</html>
