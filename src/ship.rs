@@ -138,7 +138,7 @@ fn draw_thrust_flame(position: Vec2, angle: f32) {
     );
     let r = Vec2::new(
         base.x + (back + 1.5).cos() * flame_w,
-        base.y + (back - 1.5).sin() * flame_w,
+        base.y + (back + 1.5).sin() * flame_w,
     );
 
     draw_triangle(tip, l, r, ORANGE);
