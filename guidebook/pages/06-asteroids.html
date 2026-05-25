@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="revision" content="1">
+    <title>Chapter 6: Asteroids! - Asteroids Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre { overflow-x: auto; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: '#0a0a1a',
+                        neon: '#00ff88',
+                        asteroid: '#ff6b35',
+                        thrust: '#ff3366',
+                        deep: '#0d0d2b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-space text-gray-200 min-h-screen font-mono">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <nav class="mb-8">
+            <a href="../index.html" class="text-neon hover:underline">← Back to Contents</a>
+        </nav>
+
+        <article>
+            <span class="text-neon text-sm">Chapter 6</span>
+            <h1 class="text-3xl font-bold mt-2 mb-4">Asteroids!</h1>
+            <p class="text-gray-400 mb-8 text-lg">Irregular rocks, random motion, and the screen-wrapping menace that makes this game worth playing.</p>
+
+            <!-- What Makes an Asteroid -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">What Makes an Asteroid?</h2>
+                <p class="mb-4">An asteroid is just a lumpy circle. We fake the lumpiness by generating a handful of random points around a center, then connecting them into a polygon. Each asteroid gets its own unique shape, so no two look exactly alike.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">struct Asteroid {
+    position: Vec2,       // Where it is
+    velocity: Vec2,       // How it drifts
+    rotation: f32,        // Current spin angle
+    rotation_speed: f32,  // How fast it spins
+    radius: f32,          // Approximate size (for collisions later)
+    shape: Vec&lt;Vec2&gt;,     // The actual polygon vertices
+}</code></pre>
+                </div>
+
+                <div class="space-y-3 mb-6">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">shape</strong> — A list of points relative to the asteroid's center. Generated once when the asteroid spawns. These are <em>offsets</em>, not screen positions—we add position to them when drawing.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">rotation_speed</strong> — Each asteroid spins at a different rate. Some tumble slowly, others whirl. All cosmetic, but it sells the "rocks in space" feel.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">radius</strong> — We'll need this in Chapter 8 for collision detection. It's the average distance from center to the shape's vertices. A rough circle approximation.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Generating the Shape -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Generating Irregular Shapes</h2>
+                <p class="mb-4">Here's the trick: we pick a fixed number of points (say 10), space them evenly around a circle, then randomly jitter their distance from the center. Connect them in order and you get a believable asteroid.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn generate_asteroid_shape(radius: f32) -> Vec&lt;Vec2&gt; {
+    let num_vertices = 10;
+    let mut vertices = Vec::with_capacity(num_vertices);
+
+    for i in 0..num_vertices {
+        // Evenly spaced angle around the circle
+        let angle = (i as f32 / num_vertices as f32) * 2.0 * std::f32::consts::PI;
+
+        // Random distance: between 70% and 100% of the radius
+        let jitter = rand::gen_range(0.7, 1.0);
+        let dist = radius * jitter;
+
+        vertices.push(Vec2::new(
+            angle.cos() * dist,
+            angle.sin() * dist,
+        ));
+    }
+
+    vertices
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Why 70% to 100%?</h4>
+                    <p class="text-sm">If vertices could go all the way to zero, you'd get needle-thin spikes pointing at the center—unrealistic for a rock. Keeping them within 70–100% of the radius ensures the asteroid stays chunky and believable. If you want spikier asteroids, change the range to 0.4–1.0. Smoother? Try 0.85–1.0.</p>
+                </div>
+            </section>
+
+            <!-- Drawing the Asteroid -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Drawing a Rotated Polygon</h2>
+                <p class="mb-4">Each frame, we need to take the stored shape vertices, rotate them by the asteroid's current spin angle, offset them to the asteroid's screen position, and connect them with lines.</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn draw_asteroid(asteroid: &Asteroid) {
+    let cos = asteroid.rotation.cos();
+    let sin = asteroid.rotation.sin();
+
+    // Rotate and offset each vertex
+    let world_vertices: Vec&lt;Vec2&gt; = asteroid.shape.iter().map(|v| {
+        // Rotate the vertex by the current spin angle
+        let rx = v.x * cos - v.y * sin;
+        let ry = v.x * sin + v.y * cos;
+        // Offset to world position
+        Vec2::new(
+            asteroid.position.x + rx,
+            asteroid.position.y + ry,
+        )
+    }).collect();
+
+    // Draw lines between consecutive vertices
+    for i in 0..world_vertices.len() {
+        let start = world_vertices[i];
+        let end = world_vertices[(i + 1) % world_vertices.len()];
+        draw_line(start.x, start.y, end.x, end.y, 2.0, WHITE);
+    }
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">🧠 Rotation Math Refresher</h4>
+                    <p class="text-sm">To rotate a point (x, y) by angle θ:</p>
+                    <div class="bg-gray-900 rounded p-3 mt-2">
+                        <code class="text-neon text-xs">new_x = x * cos(θ) - y * sin(θ)<br>new_y = x * sin(θ) + y * cos(θ)</code>
+                    </div>
+                    <p class="text-sm mt-2">This is different from the ship drawing in Chapter 5, where we computed rotated points directly using cos/sin of the angle. Here we're rotating pre-stored vertices. Both approaches are valid—this one is cleaner when you have a list of points to rotate together.</p>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-gray-700 mb-4">
+                    <h4 class="text-neon font-bold mb-2">💡 The (i + 1) % len() Trick</h4>
+                    <p class="text-sm">We need to draw a line from vertex 0 to 1, 1 to 2, ..., and finally the last vertex back to vertex 0. The modulo operator handles that wraparound: when <code>i</code> is the last index, <code>(i + 1) % len</code> gives 0. Clean and classic.</p>
+                </div>
+            </section>
+
+            <!-- Spawning Asteroids -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Spawning Asteroids</h2>
+                <p class="mb-4">We need asteroids to appear at random positions along the edges of the screen, drifting inward at random speeds. Here's the spawn function:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">fn spawn_asteroid(screen_w: f32, screen_h: f32) -> Asteroid {
+    // Pick a random edge: 0=top, 1=right, 2=bottom, 3=left
+    let edge = rand::gen_range(0, 4);
+
+    let position = match edge {
+        0 => Vec2::new(rand::gen_range(0.0, screen_w), 0.0),              // Top
+        1 => Vec2::new(screen_w, rand::gen_range(0.0, screen_h)),         // Right
+        2 => Vec2::new(rand::gen_range(0.0, screen_w), screen_h),         // Bottom
+        _ => Vec2::new(0.0, rand::gen_range(0.0, screen_h)),              // Left
+    };
+
+    // Random velocity: drifting generally inward, not too fast
+    let angle = rand::gen_range(0.0, 2.0 * std::f32::consts::PI);
+    let speed = rand::gen_range(30.0, 80.0);
+    let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+
+    // Random size: big, medium, or small
+    let radius = rand::gen_range(20.0, 50.0);
+
+    Asteroid {
+        position,
+        velocity,
+        rotation: rand::gen_range(0.0, 2.0 * std::f32::consts::PI),
+        rotation_speed: rand::gen_range(-1.5, 1.5),
+        radius,
+        shape: generate_asteroid_shape(radius),
+    }
+}</code></pre>
+                </div>
+
+                <div class="bg-deep rounded-lg p-4 border border-thrust mb-4">
+                    <h4 class="text-thrust font-bold mb-2">🚨 The Edge Spawning Problem</h4>
+                    <p class="text-sm">Asteroids that spawn right on the edge might immediately wrap to the other side on the first frame. That's actually fine in Asteroids—the wrapping is part of the game. But if it bothers you, spawn them slightly outside the screen bounds (e.g., <code>-radius</code> or <code>screen_w + radius</code>) so they drift in naturally.</p>
+                </div>
+            </section>
+
+            <!-- The Asteroid Module -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">The Complete Asteroid Module</h2>
+                <p class="mb-4">Everything in one place. Save this as <code>asteroid.rs</code>:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+pub struct Asteroid {
+    pub position: Vec2,
+    pub velocity: Vec2,
+    pub rotation: f32,
+    pub rotation_speed: f32,
+    pub radius: f32,
+    pub shape: Vec&lt;Vec2&gt;,
+}
+
+impl Asteroid {
+    pub fn new(screen_w: f32, screen_h: f32, radius: f32) -> Self {
+        let edge = rand::gen_range(0, 4);
+        let position = match edge {
+            0 => Vec2::new(rand::gen_range(0.0, screen_w), 0.0),
+            1 => Vec2::new(screen_w, rand::gen_range(0.0, screen_h)),
+            2 => Vec2::new(rand::gen_range(0.0, screen_w), screen_h),
+            _ => Vec2::new(0.0, rand::gen_range(0.0, screen_h)),
+        };
+
+        let angle = rand::gen_range(0.0, 2.0 * std::f32::consts::PI);
+        let speed = rand::gen_range(30.0, 80.0);
+
+        Self {
+            position,
+            velocity: Vec2::new(angle.cos() * speed, angle.sin() * speed),
+            rotation: rand::gen_range(0.0, 2.0 * std::f32::consts::PI),
+            rotation_speed: rand::gen_range(-1.5, 1.5),
+            radius,
+            shape: generate_shape(radius),
+        }
+    }
+
+    pub fn update(&mut self, dt: f32) {
+        self.position += self.velocity * dt;
+        self.rotation += self.rotation_speed * dt;
+        wrap_position(&mut self.position);
+    }
+
+    pub fn draw(&self) {
+        let cos = self.rotation.cos();
+        let sin = self.rotation.sin();
+
+        let world_vertices: Vec&lt;Vec2&gt; = self.shape.iter().map(|v| {
+            let rx = v.x * cos - v.y * sin;
+            let ry = v.x * sin + v.y * cos;
+            Vec2::new(self.position.x + rx, self.position.y + ry)
+        }).collect();
+
+        for i in 0..world_vertices.len() {
+            let start = world_vertices[i];
+            let end = world_vertices[(i + 1) % world_vertices.len()];
+            draw_line(start.x, start.y, end.x, end.y, 2.0, WHITE);
+        }
+    }
+}
+
+fn generate_shape(radius: f32) -> Vec&lt;Vec2&gt; {
+    let num_vertices = 10;
+    let mut vertices = Vec::with_capacity(num_vertices);
+
+    for i in 0..num_vertices {
+        let angle = (i as f32 / num_vertices as f32) * 2.0 * std::f32::consts::PI;
+        let jitter = rand::gen_range(0.7, 1.0);
+        let dist = radius * jitter;
+        vertices.push(Vec2::new(angle.cos() * dist, angle.sin() * dist));
+    }
+
+    vertices
+}
+
+fn wrap_position(pos: &mut Vec2) {
+    let w = screen_width();
+    let h = screen_height();
+    if pos.x < 0.0 { pos.x += w; }
+    if pos.x > w    { pos.x -= w; }
+    if pos.y < 0.0 { pos.y += h; }
+    if pos.y > h    { pos.y -= h; }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- Updated main.rs -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Updated main.rs with Asteroids</h2>
+                <p class="mb-4">Now we bring it all together. Your game loop spawns a few asteroids and updates them alongside the ship:</p>
+
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre><code class="text-neon text-sm">use macroquad::prelude::*;
+
+mod ship;
+mod asteroid;
+use ship::Ship;
+use asteroid::Asteroid;
+
+#[macroquad::main("Asteroids")]
+async fn main() {
+    let mut ship = Ship::new();
+
+    // Start with 4 asteroids
+    let mut asteroids: Vec&lt;Asteroid&gt; = (0..4)
+        .map(|_| Asteroid::new(screen_width(), screen_height(), 40.0))
+        .collect();
+
+    loop {
+        let dt = get_frame_time();
+        clear_background(BLACK);
+
+        // Input
+        let input = ship::get_input();
+
+        // Update ship
+        ship.update(&input, dt);
+
+        // Update asteroids
+        for asteroid in &mut asteroids {
+            asteroid.update(dt);
+        }
+
+        // Draw asteroids
+        for asteroid in &asteroids {
+            asteroid.draw();
+        }
+
+        // Draw ship (on top)
+        ship.draw();
+
+        next_frame().await;
+    }
+}</code></pre>
+                </div>
+                <p class="mb-4">Run it. You should see your ship at center with four lumpy polygons drifting and tumbling across the screen. They'll wrap around the edges. You can fly through them harmlessly—for now.</p>
+            </section>
+
+            <!-- Asteroid Sizes -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Asteroid Sizes: The Splitting Mechanic</h2>
+                <p class="mb-4">In the real Asteroids game, shooting a large asteroid splits it into two medium ones. Shooting a medium splits it into two small ones. Shooting a small destroys it. Each size has its own radius and point value. We'll implement the full splitting logic in Chapter 8 (collisions), but here's the size system we'll use:</p>
+
+                <div class="overflow-x-auto bg-gray-900 rounded-lg p-4 mb-6">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="py-2 pr-4 text-neon">Size</th>
+                                <th class="py-2 pr-4 text-neon">Radius</th>
+                                <th class="py-2 pr-4 text-neon">Points</th>
+                                <th class="py-2 text-neon">Splits Into</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm">
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">Large</td>
+                                <td class="py-2 pr-4">40–50</td>
+                                <td class="py-2 pr-4">20</td>
+                                <td class="py-2">2 Medium</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2 pr-4">Medium</td>
+                                <td class="py-2 pr-4">25–35</td>
+                                <td class="py-2 pr-4">50</td>
+                                <td class="py-2">2 Small</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4">Small</td>
+                                <td class="py-2 pr-4">12–20</td>
+                                <td class="py-2 pr-4">100</td>
+                                <td class="py-2">Destroyed</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-sm text-gray-400">Smaller asteroids are worth more points because they're harder to hit. We'll add a <code>size</code> field to the Asteroid struct in Chapter 8.</p>
+            </section>
+
+            <!-- Key Takeaways -->
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-neon mb-4">Key Takeaways</h2>
+                <div class="space-y-3">
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">Jittered Vertices:</strong> Random distance, fixed angle</p>
+                        <p class="text-sm text-gray-400">The simplest way to generate organic-looking shapes. Ten vertices is plenty.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">Edge Spawning:</strong> Pick a random side of the screen</p>
+                        <p class="text-sm text-gray-400">Ensures asteroids enter from all directions. Combined with wrapping, they never leave.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">Rotation Math:</strong> Rotate vertices, then offset by position</p>
+                        <p class="text-sm text-gray-400">The <code>(x*cos - y*sin, x*sin + y*cos)</code> formula is worth memorizing. You'll use it everywhere.</p>
+                    </div>
+                    <div class="bg-deep rounded-lg p-4 border-l-4 border-asteroid">
+                        <p><strong class="text-asteroid">Vec of Asteroids:</strong> Dynamic list, iterated each frame</p>
+                        <p class="text-sm text-gray-400">We'll add and remove asteroids as they split and get destroyed. Vectors handle this naturally.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="bg-thrust/10 border border-thrust rounded-lg p-4 mb-10">
+                <p class="text-thrust font-bold">🎯 Next: Shooting back.</p>
+                <p class="text-sm text-gray-300 mt-1">Chapter 7 gives your ship teeth. Bullets that fly in the direction you're facing, with limited lifetime and proper spawning from the ship's nose. Time to fight back against those rocks.</p>
+            </div>
+        </article>
+
+        <nav class="flex justify-between mt-12 pt-6 border-t border-gray-800">
+            <a href="05a-avoiding-asymmetry-typos.html" class="text-neon hover:underline">← Chapter 5a: Avoiding Asymmetry Typos</a>
+            <a href="07-shooting.html" class="text-neon hover:underline">Chapter 7: Shooting →</a>
+        </nav>
+    </div>
+</body>
+</html>
